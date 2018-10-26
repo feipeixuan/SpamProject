@@ -15,66 +15,36 @@ import json
 
 # 特征类
 class Feature:
+
     # 属性特征+文本特征
     def __init__(self, attributeFeature, textFeature):
         self.attributeFeature = attributeFeature
         self.textFeature = textFeature
 
+
 # 朴素贝叶斯分类器
 class NaiveBayes:
 
     def __init__(self):
-        self.fieldNames = ['id','nickname','registertime','type','friend_num','fan_num']
+        self.fieldNames = ['id', 'nickname', 'registertime', 'type', 'friend_num', 'fan_num']
         self.fieldValues = self.getFieldnameValues()
-        self.vocabList = None 
+        self.vocabList = None
         self.mnb = None
 
-    def getFeatures(self,attributeFile, textFile):
-        textFeatures=TextFeatureUtil.getTextsByUser([textFile])
-        (features, results) = AttributeFeatureUtil.loadTranSetFileList([attributeFile],[1])
+    # 获取特征集合
+    def getFeatures(self, attributeFile, textFile):
+        textFeatures = TextFeatureUtil.getTextsByUser([textFile])
+        (attributeFeatures, results) = AttributeFeatureUtil.loadTranSetFileList([attributeFile], [1])
         testFeatures = []
-        for i in range(len(features)):
-            attributeFeature = features[i]
+        for i in range(len(attributeFeatures)):
+            attributeFeature = attributeFeatures[i]
             userid = attributeFeature[0]
-            if textFeatures.__contains__(userid):
+            if userid in textFeatures:
                 texts = textFeatures[userid]
                 for text in texts:
                     testFeature = Feature(attributeFeature, text)
                     testFeatures.append(testFeature)
         return testFeatures
-
-    # # 划分训练集和测试集,基于用户级别
-    # # 参数：属性文件列表、文本文件列表，文本类别、测试数据集的比例
-    # def train_test_split(attributeFileList, textFileList, textFileTypes, factor):
-    #     user_texts = TextFeatureUtil.TextFeatureUtil.getTextsByUser(textFileList)
-    #     (fieldnames, features, results) = AttributeFeatureUtil.AttributeFeatureUtil.loadTranSetFileList(
-    #         attributeFileList,
-    #         textFileTypes)
-    #     train_datas, test_datas, train_results, test_results = selection.train_test_split(features, results,
-    #                                                                                       test_size=factor,
-    #                                                                                       random_state=42)
-    #     train_feature_results = []
-    #     test_feature_results = []
-    #
-    #     for i in range(len(train_datas)):
-    #         train_data = train_datas[i]
-    #         userid = train_data[0]
-    #         if user_texts.__contains__(userid):
-    #             texts = user_texts[userid]
-    #             for text in texts:
-    #                 train_feature_result = Feature_Result(train_data, text, train_results[i])
-    #                 train_feature_results.append(train_feature_result)
-    #
-    #     for i in range(len(test_datas)):
-    #         test_data = test_datas[i]
-    #         userid = test_data[0]
-    #         if user_texts.__contains__(userid):
-    #             texts = user_texts[userid]
-    #             for text in texts:
-    #                 test_feature_result = Feature_Result(test_data, text, test_results[i])
-    #                 test_feature_results.append(test_feature_result)
-    #
-    #     return (fieldnames, train_feature_results, test_feature_results)
 
     # 获取属性的取值列表
     def getFieldnameValues(self):
@@ -91,20 +61,19 @@ class NaiveBayes:
                 fieldname_values[fieldname] = values
         return fieldname_values
 
-    # 产生特征向量
-    def generateVectors(self, featureResults):
+    # 产生特征向量集合
+    def generateVectors(self, features):
         vectors = []
-        size = len(featureResults)
-        for i in range(size):
-            vector = self.generateVector(featureResults[i])
+        for feature in features:
+            vector = self.generateVector(feature)
             vectors.append(vector)
         return vectors
 
     # 产生特征向量
-    def generateVector(self, featureResult):
+    def generateVector(self, feature):
         vector = []
-        textFeature = featureResult.textFeature
-        attributeFeature = featureResult.attributeFeature
+        textFeature = feature.textFeature
+        attributeFeature = feature.attributeFeature
         textVector = self.generateTextVector(textFeature)
         attributeVector = self.generateAttributeVector(attributeFeature)
         vector.extend(textVector)
@@ -113,7 +82,7 @@ class NaiveBayes:
 
     # 产生文本特征向量
     def generateTextVector(self, textFeature):
-        vocabList=self.vocabList
+        vocabList = self.vocabList
         textVector = TextFeatureUtil.getTextVector(vocabList, textFeature)
         textLength = len(textFeature)
         textLength = round(math.log2(textLength))
@@ -136,15 +105,14 @@ class NaiveBayes:
                 value = int(value)
             if value in values:
                 index = values.index(value)
-            # else:
-            #     index = len(values) - 1
+            # TODO 不在取值集合中
             field_vector = [0] * len(values)
             field_vector[index] = 1
             data_vector.extend(field_vector)
         return data_vector
 
     # 训练模型
-    # 1.正样本文件 2.负样本文件
+    # 1.正样本文件列表 2.负样本文件列表
     def trainModel(self, positiveFileList, negativeFileList):
         # 载入数据
         textFeatures = TextFeatureUtil.getTextsByUser([positiveFileList[1], negativeFileList[1]])
@@ -152,47 +120,43 @@ class NaiveBayes:
             [positiveFileList[0], negativeFileList[0]], [1, 0])
 
         # 构建全部的训练数据
-        trainFeatures=[]
-        trainTexts=[]
-        trainResults=[]
+        trainFeatures = []
+        trainTexts = []
+        trainResults = []
 
         for i in range(len(attributeFeatures)):
-            attributeFeature=attributeFeatures[i]
+            attributeFeature = attributeFeatures[i]
             userid = attributeFeature[0]
             if textFeatures.__contains__(userid):
                 texts = textFeatures[userid]
                 for text in texts:
-                    trainFeature = Feature(attributeFeature,text)
+                    trainFeature = Feature(attributeFeature, text)
                     trainFeatures.append(trainFeature)
                     trainTexts.append(text)
                     trainResults.append(results[i])
 
         # 构建词典
-        self.vocabList=TextFeatureUtil.constrcutVocabList(trainTexts)
+        self.vocabList = TextFeatureUtil.constrcutVocabList(trainTexts)
         print(len(self.vocabList))
-        # # out=open("vocablist.txt","w")
-        # # for word in self.vocabList:
-        # #     out.write(word+'\n')
-        # # out.close()
         # 构建训练向量
-        trainVectors=self.generateVectors(trainFeatures)
+        trainVectors = self.generateVectors(trainFeatures)
         # 使用分类器进行训练
         mnb = MultinomialNB()
-        mnb.fit(trainVectors,trainResults)
+        mnb.fit(trainVectors, trainResults)
         self.mnb = mnb
 
     # 持久化模型
-    def persistModel(self,url):
-        joblib.dump(self.mnb, url+'/multinomialNB')
-        with open(url+'/vocabList.json', 'w') as json_file:
-                json_file.write(json.dumps(self.vocabList))
-            
+    def persistModel(self, url):
+        joblib.dump(self.mnb, url + '/multinomialNB')
+        with open(url + '/vocabList.json', 'w') as json_file:
+            json_file.write(json.dumps(self.vocabList))
+
     # 载入模型
     def loadModel(self, url):
-        mnb = joblib.load(url+'/multinomialNB')
-        self.mnb = mnb  
-        with open(url+'/vocabList.json') as json_file:
-                self.vocabList = json.load(json_file)
+        mnb = joblib.load(url + '/multinomialNB')
+        self.mnb = mnb
+        with open(url + '/vocabList.json') as json_file:
+            self.vocabList = json.load(json_file)
 
     # 针对单条特征做预测
     # 1.True代表有问题 2.False是没问题
@@ -207,21 +171,24 @@ class NaiveBayes:
 
 # 主函数
 def main():
-    # positeiveFileList=['正常用户完整信息PART.csv','正常评论1026[去重以后].txt']
-    # negativeFileList=['骂人用户完整信息PART.csv','骂人评论[去重以后].txt']
+    positeiveFileList=['正常用户完整信息PART.csv','正常评论1026[去重以后].txt']
+    negativeFileList=['骂人用户完整信息PART.csv','骂人评论[去重以后].txt']
     # # 1.初始化贝叶斯分类器
-    naiveBayes=NaiveBayes()
+    naiveBayes = NaiveBayes()
     # naiveBayes.trainModel(positeiveFileList,negativeFileList)
     # naiveBayes.persistModel("rs")
     naiveBayes.loadModel("rs")
     # 2.做预测
     out = open('rs/判断为有问题的日常文本[文本+属性特征].txt', 'w')
+    # 3.获取测试集特征集合
     testFeatures = naiveBayes.getFeatures("日常用户完整信息PART.csv", "日常文本集合[去重以后].txt")
     for testFeature in testFeatures:
-         result=naiveBayes.predict(testFeature)
-         if result:
-             print(testFeature.textFeature)
-             userid=str(testFeature.attributeFeature[0])
-             out.write(userid+":"+testFeature.textFeature+"\n")
+        result = naiveBayes.predict(testFeature)
+        if result:
+            print(testFeature.textFeature)
+            userid = str(testFeature.attributeFeature[0])
+            out.write(userid + ":" + testFeature.textFeature + "\n")
     out.close()
+
+
 main()
