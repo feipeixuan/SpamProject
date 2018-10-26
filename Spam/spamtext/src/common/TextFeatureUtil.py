@@ -80,12 +80,14 @@ class TextFeatureUtil:
     # 构建词袋
     @staticmethod
     def constrcutVocabList(texts):
-        stopwords = TextFeatureUtil.getStopWords("resource/text/停用词.txt")
+        stopwords = TextFeatureUtil.getStopWords("../data/text/stopwords.txt")
         stopwords.add(" ")
         stopwords.add(":")
         words = set()
         for text in texts:
             words = words.union(TextFeatureUtil.splitText(text) - stopwords)
+        words=list(words)
+        words.sort
         vocabList = {}
         index = 0
         for word in words:
@@ -133,7 +135,7 @@ class TextFeatureUtil:
     # 利用正则表达式过滤无效文本，只保留数字+汉字+英文+常用特殊字符，其他全部去掉
     @staticmethod
     def cleanText(text):
-        cop = re.compile("[^\u4e00-\u9fa5^\s^\,^\:^\，^\：^\。^\.^a-z^A-Z^0-9]")
+        cop = re.compile("[^\u4e00-\u9fa5^\s^a-z^A-Z^0-9]")#^\:^\，^\：^\。^\.
         return cop.sub("", text)
 
     # 读出多行文本,只是进行了最基本的过滤操作
@@ -155,9 +157,9 @@ class TextFeatureUtil:
     # 判断是否是无效文本，系统产生视为无效
     @staticmethod
     def isInvalidText(text):
-        filter_strs = ['来听听我唱', 'gif', '击败', '转发', '打败']
-        for filter_str in filter_strs:
-            if text.find(filter_str) == -1:
+        filterStrs = ['来听听我唱', 'gif', '击败', '转发', '打败']
+        for filterStr in filterStrs:
+            if text.find(filterStr) == -1:
                 continue
             return True
         if len(text) <= 5:
@@ -177,7 +179,7 @@ class TextFeatureUtil:
                 if len(strs) < 2:
                     continue
                 else:
-                    userid = strs[0]
+                    userid = int(strs[0])
                     text = line[len(strs[0]) + 1:]
                     if TextFeatureUtil.isInvalidText(text):
                         continue
@@ -190,3 +192,5 @@ class TextFeatureUtil:
                         users[userid].append(text)
         return users
 
+# texts="傻狗诗人么123jjj操:aaa,bb"
+# print(TextFeatureUtil.constrcutVocabList([texts]))

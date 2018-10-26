@@ -7,6 +7,7 @@ import numpy as np
 import time
 import math
 
+
 # 属性特征处理类
 class AttributeFeatureUtil:
 
@@ -15,21 +16,17 @@ class AttributeFeatureUtil:
     def loadTranSetFileList(filelist, types):
         features = []  # 特征向量
         results = []  # 每条记录对应的结果
-        fieldnames = []
         for i in range(len(filelist)):
             filename = filelist[i]
-            (fieldnames, f, r) = AttributeFeatureUtil.loadTranSetFile(filename, types[i]);
+            (f, r) = AttributeFeatureUtil.loadTranSetFile(filename, types[i]);
             features.extend(f)
             results.extend(r)
             print("finish loadTranSetFile: " + filename + " linenum: " + str(len(f)))
-        print("")
-        # 从特征集中删除了三个特征
-        return (np.array(fieldnames), np.array(features), np.array(results))
+        return (features, results)
 
     # 载入单个数据文件
     @staticmethod
     def loadTranSetFile(filename, type):
-        # 第一列为 uid, 第二列为结果标签， 之后的列为feature
         features = []
         results = []
         fieldnames = []
@@ -41,47 +38,32 @@ class AttributeFeatureUtil:
         for feature in features:
             AttributeFeatureUtil.preprocessData(fieldnames, feature)
             results.append(type)
-        fieldnames.append("coin_buy_ratio")
-        fieldnames.remove("phone_valid")
-        return (fieldnames, features, results)
+        return (features, results)
 
     # 预处理数据：使得数据在给定的数据空间内,同时对数据进行一定的变换
     @staticmethod
     def preprocessData(fieldnames, parts):
-        # 最大值的设定会影响数据的变换，可以考虑调参
-        maxlimit = {'flower_num': 4, 'friend_num': 4, 'fan_num': 4, 'work_num': 3, 'coin_sum': 6, 'coin_buy': 6}
-        numeric_attributes = ['flower_num', 'friend_num', 'fan_num', 'work_num', 'coin_sum', 'coin_buy']
-        size = len(parts)
-        buy_gold_coin = round(math.log(parts[size - 3] * 1.0 / (parts[size - 4] + 1) * 100 + 1, 2))
-        parts.append(buy_gold_coin)
+        # 最大值的设定会影响数据的变换
+        maxlimit = {'friend_num': 4, 'fan_num': 4}
+        numericAttributes = ['friend_num', 'fan_num']
         for i in range(len(fieldnames)):
             name = fieldnames[i]
             if name == "nickname":
                 parts[i] = AttributeFeatureUtil.getNicknameType(parts[i])
-            if name == "version":
-                parts[i] = AttributeFeatureUtil.getVersion(parts[i])
-            if name == "src":
-                parts[i] = AttributeFeatureUtil.getSrc(parts[i])
-            if name == "phone":
-                parts[i] = AttributeFeatureUtil.getPhone(parts[i])
             if name == "registertime":
                 parts[i] = AttributeFeatureUtil.getHour(parts[i])
-            if name == "province" and type(parts[i]) == float:
-                parts[i] = "none"
-            if name in numeric_attributes:
+            if name in numericAttributes:
+                # 没有值的情况
+                if parts[i] == None:
+                    parts[i] = 0
                 parts[i] = round(math.log10(parts[i] + 1))
                 parts[i] = min(parts[i], maxlimit[name])
-        # 新增一列 付费金币占比 +  手机号
-        phone_index = fieldnames.index("phone")
-        parts[phone_index] = parts[phone_index] + parts[phone_index + 1]
-        del parts[phone_index + 1]
-        return (fieldnames, parts)
 
     # 获取注册时区
     @staticmethod
-    def getHour(register_time):
-        register_time = time.localtime(time.mktime(time.strptime(register_time, "%Y-%m-%d %H:%M:%S")))
-        return register_time.tm_hour
+    def getHour(registerTime):
+        registerTime = time.localtime(time.mktime(time.strptime(registerTime, "%Y-%m-%d %H:%M:%S")))
+        return registerTime.tm_hour
 
     # 得到三位的版本号
     @staticmethod
@@ -89,9 +71,8 @@ class AttributeFeatureUtil:
         if type(version) == float:
             return 0;
         else:
-            print(version)
             str = version.split(".")
-            if len(str) <=1:
+            if len(str) <= 1:
                 return 0
             if len(str) == 2:
                 value = str[0] + str[1] + "0"
@@ -99,7 +80,7 @@ class AttributeFeatureUtil:
                 value = str[0] + str[1] + str[2]
             return value
 
-    # 四种情况：1.纯数字 2.字母+数字 3.包含表情 4.其他类型
+    # 四种情况：0.纯数字 1.字母+数字 2.包含表情 3.其他类型
     @staticmethod
     def getNicknameType(nickname):
         nickname = nickname.lower()
@@ -162,7 +143,8 @@ class AttributeFeatureUtil:
     def getValues(fieldName):
         # 设定属性对应的取值范围
         maxlimit = {'flower_num': 4, 'friend_num': 4, 'fan_num': 4, 'work_num': 3, 'coin_sum': 6, 'coin_buy': 6,
-                    'phone': 2, 'registertime': 23, 'coin_buy_ratio': 7, 'richlevel': 27, 'starlevel': 33,'nickname':3}
+                    'phone': 2, 'registertime': 23, 'coin_buy_ratio': 7, 'richlevel': 27, 'starlevel': 33,
+                    'nickname': 3}
         if maxlimit.__contains__(fieldName):
             return list(range(0, maxlimit.get(fieldName) + 1))
         elif fieldName == "type":
@@ -174,3 +156,11 @@ class AttributeFeatureUtil:
         values.append("default")
         return values
 
+
+def test():
+    fieldnames = ['id', 'nickname', 'registertime', 'type', 'friend_num', 'fan_num']
+    feature = [235558915, '入骨情话1314', '2018-05-24 16:27:31', 'phone', 1, 19]
+    AttributeFeatureUtil.preprocessData(fieldnames, feature)
+    print(feature)
+
+# test()
